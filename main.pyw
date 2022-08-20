@@ -30,6 +30,8 @@ playerColors = []
 for i in range(int(easygui.choicebox('How many players?', 'Player count', [2, 3, 4], 0))):
     playerColors.append(playerColorOptions[i])
 
+randomAI = easygui.boolbox('AI?', 'AI Option')
+
 
 # Defines what a GridSpace is and does
 class GridSpace:
@@ -60,7 +62,7 @@ font = pygame.font.Font('slkscr.ttf', 32)
 
 # Scoreboard and current turn UI
 def updateScoreBoardAndCurrentTurn():
-    text = font.render(f"    Player {currentPlayer + 1}'s turn with {tokenCount(currentPlayer)} tokens    ", True,
+    text = font.render(f"    This Player's turn with {tokenCount(currentPlayer)}/90 tokens    ", True,
                        playerColors[currentPlayer][1], backgroundColor)
     textRect = text.get_rect()
     textRect.center = (500, 1050)
@@ -121,8 +123,12 @@ def checkForOverflow():
     return False
 
 
+Winning = False
+
+
 # Checks to see if a player controller has 90+ tokens
 def checkWinCondition():
+    global Winning
     updateScoreBoardAndCurrentTurn()
     playerCounts = []
     for i in range(len(playerColors)):
@@ -131,15 +137,15 @@ def checkWinCondition():
     for i in range(len(screenGrid)):
         if screenGrid[i].playerController != -1:
             playerCounts[screenGrid[i].playerController] += screenGrid[i].tokens
-    for i in range(2):
+    for i in range(len(playerColors)):
         if playerCounts[i] > victoryCount:
-            text = font.render(f"    Player {currentPlayer + 1}'s wins with {tokenCount(currentPlayer)} tokens!    ",
-                               True,
-                               playerColors[currentPlayer][1], backgroundColor)
+            text = font.render(f"     This Player wins with {playerCounts[i]} tokens!    ",
+                               True, playerColors[currentPlayer - 1][1], backgroundColor)
             textRect = text.get_rect()
             textRect.center = (500, 1050)
             screen.blit(text, textRect)
             pygame.display.update(textRect)
+            Winning = True
 
 
 def tokenCount(player):
@@ -159,6 +165,8 @@ def makeMove(tile):
     if tile.tokens == 5:
         spreadDots()
     tile.render()
+    if Winning:
+        return
     if currentPlayer == len(playerColors) - 1:
         currentPlayer = 0
     else:
@@ -184,25 +192,31 @@ while running:
                 if screenGrid[i].bounds.collidepoint(pos):
                     # Check if player can interact with space, if not return
                     if screenGrid[i].playerController == -1 or screenGrid[i].playerController == currentPlayer:
-                        # Make move and switch player
-                        makeMove(screenGrid[i])
-    # Enable Random AI
-    if randomAI:
-        if currentPlayer != 0:
-            validMoves = []
-            if randint(0, 3) == 1:
-                for i in range(len(screenGrid)):
-                    if screenGrid[i].playerController == currentPlayer:
-                        validMoves.append(screenGrid[i])
-            else:
-                for i in range(len(screenGrid)):
-                    if screenGrid[i].playerController == -1 or screenGrid[i].playerController == currentPlayer:
-                        validMoves.append(screenGrid[i])
-            try:
-                randomTile = validMoves[randint(0, len(validMoves) - 1)]
-            except ValueError:
-                for i in range(len(screenGrid)):
-                    if screenGrid[i].playerController == -1 or screenGrid[i].playerController == currentPlayer:
-                        validMoves.append(screenGrid[i])
-                        randomTile = validMoves[randint(0, len(validMoves) - 1)]
-            makeMove(randomTile)
+                        # Skip is game is won
+                        if not Winning:
+                            # Make move and switch player
+                            makeMove(screenGrid[i])
+    # Skip is game is won
+    if not Winning:
+        # Enable Random AI
+        if randomAI:
+            if currentPlayer != 0:
+                validMoves = []
+                if randint(0, 2) == 1:
+                    for i in range(len(screenGrid)):
+                        if screenGrid[i].playerController == currentPlayer:
+                            validMoves.append(screenGrid[i])
+                else:
+                    for i in range(len(screenGrid)):
+                        if screenGrid[i].playerController == -1 or screenGrid[i].playerController == currentPlayer:
+                            validMoves.append(screenGrid[i])
+                try:
+                    randomTile = validMoves[randint(0, len(validMoves) - 1)]
+                except ValueError:
+                    for i in range(len(screenGrid)):
+                        if screenGrid[i].playerController == -1 or screenGrid[i].playerController == currentPlayer:
+                            validMoves.append(screenGrid[i])
+                            randomTile = validMoves[randint(0, len(validMoves) - 1)]
+                makeMove(randomTile)
+    else:
+        checkWinCondition()
