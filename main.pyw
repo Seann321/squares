@@ -8,7 +8,7 @@ pygame.init()
 backgroundColor = (50, 50, 50)
 screenWidth, screenHeight = 1000, 1100
 screen = pygame.display.set_mode((screenWidth, screenHeight))
-pygame.display.set_caption('Squares Player 1\'s turn. First to 90 tokens wins')
+pygame.display.set_caption('Squares. First to 90 tokens wins')
 screen.fill(backgroundColor)
 
 # Enable Random AI
@@ -19,7 +19,7 @@ FPS = 60
 clock = pygame.time.Clock()
 deltaTime = clock.tick(FPS)
 
-# Player 1 and 2 logic
+# Player Colors
 currentPlayer = 0
 playerColorOptions = [['#2081c3', '#63d2ff', '#78d5d7', '#bed8d4'],  # Blue
                       ['#14BD58', '#058c42', '#04471c', '#0d2818'],  # Green
@@ -27,10 +27,6 @@ playerColorOptions = [['#2081c3', '#63d2ff', '#78d5d7', '#bed8d4'],  # Blue
                       ['#AD2831', '#A7171E', '#640D14', '#38040E']]  # Red
 
 playerColors = []
-for i in range(int(easygui.choicebox('How many players?', 'Player count', [2, 3, 4], 0))):
-    playerColors.append(playerColorOptions[i])
-
-randomAI = easygui.boolbox('AI?', 'AI Option')
 
 
 # Defines what a GridSpace is and does
@@ -41,28 +37,31 @@ class GridSpace:
         self.playerController = -1
 
     def render(self):
+        # Defines where in the grid space the 4 circles will be
         circlePOS = [(self.bounds[0] + self.bounds[3] / 3, self.bounds[1] + self.bounds[3] / 3),
                      (self.bounds[0] + (self.bounds[3] / 3) * 2, self.bounds[1] + self.bounds[3] / 3),
                      (self.bounds[0] + self.bounds[3] / 3, self.bounds[1] + self.bounds[3] / 1.5),
                      (self.bounds[0] + self.bounds[3] / 3 + self.bounds[3] / 3, self.bounds[1] + self.bounds[3] / 1.5)]
+        # If the square has no tokens, reset it's color to the checkered pattern
         if self.tokens == 0:
             if screenGrid.index(self) % 2:
                 pygame.draw.rect(screen, (100, 100, 100), self.bounds)
             else:
                 pygame.draw.rect(screen, (0, 0, 0), self.bounds)
+        # Loop through each circle and render it
         elif self.tokens < 5:
             for i in range(self.tokens):
                 pygame.draw.circle(screen, playerColors[currentPlayer][i], circlePOS[i], self.bounds[3] / 4, 100)
         pygame.display.update(self.bounds)
 
 
-# Initial ScoreBoard Graphics
+# Loading Font files
 font = pygame.font.Font('slkscr.ttf', 32)
 
 
 # Scoreboard and current turn UI
 def updateScoreBoardAndCurrentTurn():
-    text = font.render(f"    This Player's turn with {tokenCount(currentPlayer)}/90 tokens    ", True,
+    text = font.render(f"    This Player's turn with {tokenCount()[currentPlayer]}/90 tokens    ", True,
                        playerColors[currentPlayer][1], backgroundColor)
     textRect = text.get_rect()
     textRect.center = (500, 1050)
@@ -92,12 +91,20 @@ gridHeight = int((screenHeight - 100) / gridSize)
 for x in range(gridSize):
     for y in range(gridSize):
         screenGrid.append(GridSpace(pygame.Rect([(x * gridWidth), y * gridHeight, gridWidth, gridHeight])))
+# Sets checkered pattern
 for grid in screenGrid:
     if screenGrid.index(grid) % 2:
         pygame.draw.rect(screen, (100, 100, 100), grid.bounds)
     else:
         pygame.draw.rect(screen, (0, 0, 0), grid.bounds)
 pygame.display.flip()
+
+
+# UI to chose AI and amount of players
+for i in range(int(easygui.choicebox('How many players?', 'Player count', [2, 3, 4], 0))):
+    playerColors.append(playerColorOptions[i])
+
+randomAI = easygui.boolbox('AI?', 'AI Option')
 
 
 # Domino effect with boxes
@@ -123,20 +130,16 @@ def checkForOverflow():
     return False
 
 
-Winning = False
+# Global var to see if the game should stop or not
+GameOver = False
 
 
 # Checks to see if a player controller has 90+ tokens
 def checkWinCondition():
-    global Winning
+    global GameOver
+    victoryCount = gridSize * 10 - 1
     updateScoreBoardAndCurrentTurn()
-    playerCounts = []
-    for i in range(len(playerColors)):
-        playerCounts.append(0)
-    victoryCount = gridSize * 10
-    for i in range(len(screenGrid)):
-        if screenGrid[i].playerController != -1:
-            playerCounts[screenGrid[i].playerController] += screenGrid[i].tokens
+    playerCounts = tokenCount()
     for i in range(len(playerColors)):
         if playerCounts[i] > victoryCount:
             text = font.render(f"     This Player wins with {playerCounts[i]} tokens!    ",
@@ -145,19 +148,21 @@ def checkWinCondition():
             textRect.center = (500, 1050)
             screen.blit(text, textRect)
             pygame.display.update(textRect)
-            Winning = True
+            GameOver = True
 
 
-def tokenCount(player):
+# Returns a list of all player token totals
+def tokenCount():
     playerCounts = []
     for i in range(len(playerColors)):
         playerCounts.append(0)
     for i in range(len(screenGrid)):
         if screenGrid[i].playerController != -1:
             playerCounts[screenGrid[i].playerController] += screenGrid[i].tokens
-    return playerCounts[player]
+    return playerCounts
 
 
+# Takes a tile and applies a token, spreads them if needed, then checks when condition
 def makeMove(tile):
     global currentPlayer
     tile.playerController = currentPlayer
@@ -165,13 +170,12 @@ def makeMove(tile):
     if tile.tokens == 5:
         spreadDots()
     tile.render()
-    if Winning:
+    if GameOver:
         return
     if currentPlayer == len(playerColors) - 1:
         currentPlayer = 0
     else:
         currentPlayer += 1
-    pygame.display.set_caption(f"Squares. Player {currentPlayer + 1}'s turn. First to 90 tokens wins")
     checkWinCondition()
 
 
@@ -180,24 +184,26 @@ updateScoreBoardAndCurrentTurn()
 # Game Loop
 running = True
 while running:
-    clock.tick(FPS)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        # Check for left click
-        if event.type == pygame.MOUSEBUTTONUP:
-            pos = pygame.mouse.get_pos()
-            # Add and render new tokens
-            for i in range(len(screenGrid)):
-                if screenGrid[i].bounds.collidepoint(pos):
-                    # Check if player can interact with space, if not return
-                    if screenGrid[i].playerController == -1 or screenGrid[i].playerController == currentPlayer:
-                        # Skip is game is won
-                        if not Winning:
+    clock.tick(FPS)
+    if GameOver:
+        checkWinCondition()
+    else:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            # Check for left click
+            if event.type == pygame.MOUSEBUTTONUP:
+                pos = pygame.mouse.get_pos()
+                # Add and render new tokens
+                for i in range(len(screenGrid)):
+                    if screenGrid[i].bounds.collidepoint(pos):
+                        # Check if player can interact with space, if not return
+                        if screenGrid[i].playerController == -1 or screenGrid[i].playerController == currentPlayer:
                             # Make move and switch player
                             makeMove(screenGrid[i])
-    # Skip is game is won
-    if not Winning:
         # Enable Random AI
         if randomAI:
             if currentPlayer != 0:
@@ -218,5 +224,3 @@ while running:
                             validMoves.append(screenGrid[i])
                             randomTile = validMoves[randint(0, len(validMoves) - 1)]
                 makeMove(randomTile)
-    else:
-        checkWinCondition()
