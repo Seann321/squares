@@ -22,9 +22,9 @@ deltaTime = clock.tick(FPS)
 # Player 1 and 2 logic
 currentPlayer = 0
 playerColorOptions = [['#2081c3', '#63d2ff', '#78d5d7', '#bed8d4'],  # Blue
-                ['#14BD58', '#058c42', '#04471c', '#0d2818'],  # Green
-                ['#E3C567', '#d9ae61', '#c8963e', '#573d1c'],  # Yellow
-                ['#AD2831', '#A7171E', '#640D14', '#38040E']]  # Red
+                      ['#14BD58', '#058c42', '#04471c', '#0d2818'],  # Green
+                      ['#E3C567', '#d9ae61', '#c8963e', '#573d1c'],  # Yellow
+                      ['#AD2831', '#A7171E', '#640D14', '#38040E']]  # Red
 
 playerColors = []
 for i in range(int(easygui.choicebox('How many players?', 'Player count', [2, 3, 4], 0))):
@@ -60,7 +60,8 @@ font = pygame.font.Font('slkscr.ttf', 32)
 
 # Scoreboard and current turn UI
 def updateScoreBoardAndCurrentTurn():
-    text = font.render(f"    Player {currentPlayer + 1}'s turn with {tokenCount(currentPlayer)} tokens    ", True, playerColors[currentPlayer][1], backgroundColor)
+    text = font.render(f"    Player {currentPlayer + 1}'s turn with {tokenCount(currentPlayer)} tokens    ", True,
+                       playerColors[currentPlayer][1], backgroundColor)
     textRect = text.get_rect()
     textRect.center = (500, 1050)
     screen.blit(text, textRect)
@@ -132,7 +133,8 @@ def checkWinCondition():
             playerCounts[screenGrid[i].playerController] += screenGrid[i].tokens
     for i in range(2):
         if playerCounts[i] > victoryCount:
-            text = font.render(f"    Player {currentPlayer + 1}'s wins with {tokenCount(currentPlayer)} tokens!    ", True,
+            text = font.render(f"    Player {currentPlayer + 1}'s wins with {tokenCount(currentPlayer)} tokens!    ",
+                               True,
                                playerColors[currentPlayer][1], backgroundColor)
             textRect = text.get_rect()
             textRect.center = (500, 1050)
@@ -148,6 +150,21 @@ def tokenCount(player):
         if screenGrid[i].playerController != -1:
             playerCounts[screenGrid[i].playerController] += screenGrid[i].tokens
     return playerCounts[player]
+
+
+def makeMove(tile):
+    global currentPlayer
+    tile.playerController = currentPlayer
+    tile.tokens += 1
+    if tile.tokens == 5:
+        spreadDots()
+    tile.render()
+    if currentPlayer == len(playerColors) - 1:
+        currentPlayer = 0
+    else:
+        currentPlayer += 1
+    pygame.display.set_caption(f"Squares. Player {currentPlayer + 1}'s turn. First to 90 tokens wins")
+    checkWinCondition()
 
 
 # Initial ScoreBoard
@@ -167,36 +184,25 @@ while running:
                 if screenGrid[i].bounds.collidepoint(pos):
                     # Check if player can interact with space, if not return
                     if screenGrid[i].playerController == -1 or screenGrid[i].playerController == currentPlayer:
-                        screenGrid[i].playerController = currentPlayer
-                        screenGrid[i].tokens += 1
-                        if screenGrid[i].tokens == 5:
-                            spreadDots()
-                        screenGrid[i].render()
-                        # Switch to other player
-                        if currentPlayer == len(playerColors)-1:
-                            currentPlayer = 0
-                        else:
-                            currentPlayer += 1
-                        pygame.display.set_caption(
-                            f"Squares. Player {currentPlayer + 1}'s turn. First to 90 tokens wins")
-                        checkWinCondition()
+                        # Make move and switch player
+                        makeMove(screenGrid[i])
     # Enable Random AI
     if randomAI:
         if currentPlayer != 0:
             validMoves = []
-            for i in range(len(screenGrid)):
-                if screenGrid[i].playerController == -1 or screenGrid[i].playerController == currentPlayer:
-                    validMoves.append(screenGrid[i])
-            randomTile = validMoves[randint(0, len(validMoves) - 1)]
-            randomTile.playerController = currentPlayer
-            randomTile.tokens += 1
-            if randomTile.tokens == 5:
-                spreadDots()
-            randomTile.render()
-            if currentPlayer == len(playerColors) - 1:
-                currentPlayer = 0
+            if randint(0, 3) == 1:
+                for i in range(len(screenGrid)):
+                    if screenGrid[i].playerController == currentPlayer:
+                        validMoves.append(screenGrid[i])
             else:
-                currentPlayer += 1
-            pygame.display.set_caption(
-                f"Squares. Player {currentPlayer + 1}'s turn. First to 90 tokens wins")
-            checkWinCondition()
+                for i in range(len(screenGrid)):
+                    if screenGrid[i].playerController == -1 or screenGrid[i].playerController == currentPlayer:
+                        validMoves.append(screenGrid[i])
+            try:
+                randomTile = validMoves[randint(0, len(validMoves) - 1)]
+            except ValueError:
+                for i in range(len(screenGrid)):
+                    if screenGrid[i].playerController == -1 or screenGrid[i].playerController == currentPlayer:
+                        validMoves.append(screenGrid[i])
+                        randomTile = validMoves[randint(0, len(validMoves) - 1)]
+            makeMove(randomTile)
